@@ -688,29 +688,22 @@
             background-color: #0a0306;
         }
 
-        /* Las fotos vienen en formatos muy distintos (9:16 de móvil, 4:3 vertical,
-           4:3 horizontal...) y la card siempre mide 7/10. Si se recorta (cover) se
-           pierde parte de la foto; si se encaja entera (contain) cada card enseña
-           un hueco negro de distinto tamaño y no hay dos iguales. Solución: la foto
-           va entera encima de una copia de sí misma ampliada y desenfocada que
-           rellena el marco. Así no se recorta nada y todas se ven igual de llenas. */
+        /* Las fotos originales vienen en formatos muy distintos (9:16 de móvil,
+           4:3 vertical, 4:3 horizontal...) y la card siempre mide 7/10, así que
+           o se recortaban o dejaban un hueco negro distinto en cada una.
+           Lo que se carga aquí son las versiones de "fotos-cards/": ya vienen
+           a 7/10 con la foto entera sobre un fondo desenfocado de sí misma.
+           El desenfoque va horneado en el JPEG y NO en CSS a propósito: un
+           filter dentro de este carrusel (transform-style: preserve-3d) hace
+           que el navegador aplane esa capa y la saque de la perspectiva 3D,
+           que es justo lo que descuadraba las cards laterales. */
         .carousel-cell img {
-            position: absolute;
-            inset: 0;
             width: 100%;
             height: 100%;
-            object-fit: contain;
+            object-fit: cover;
             pointer-events: none;
             opacity: 0.9;
             transition: opacity 0.3s;
-        }
-
-        .carousel-cell img.card-bg {
-            object-fit: cover;
-            transform: scale(1.2);
-            filter: blur(20px) brightness(0.5) saturate(1.15);
-            opacity: 1;
-            transition: none;
         }
 
         .carousel-cell:hover img { opacity: 1; }
@@ -981,6 +974,31 @@
             box-shadow: var(--neon-glow), 0 0 40px rgba(0,0,0,0.8);
             background: #000;
         }
+
+        /* Indicador mientras el vídeo llena el buffer, para que una espera se
+           vea como una espera y no como que se ha quedado colgado. */
+        .video-loading {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 2;
+            display: none;
+            pointer-events: none;
+        }
+
+        .video-loading.show { display: block; }
+
+        .video-loading span {
+            display: block;
+            width: 42px; height: 42px;
+            border: 3px solid rgba(255, 215, 0, 0.25);
+            border-top-color: var(--gold);
+            border-radius: 50%;
+            animation: girarCarga 0.8s linear infinite;
+            box-shadow: 0 0 18px rgba(255, 215, 0, 0.35);
+        }
+
+        @keyframes girarCarga { to { transform: rotate(360deg); } }
 
         .video-lightbox-close {
             position: absolute;
@@ -1337,6 +1355,7 @@
         <div class="video-lightbox-content">
             <button type="button" class="video-lightbox-close" onclick="cerrarVideo()" aria-label="Cerrar">&times;</button>
             <video id="video-lightbox-player" controls playsinline preload="auto"></video>
+            <div class="video-loading" id="video-loading"><span></span></div>
         </div>
     </div>
 
@@ -1363,8 +1382,13 @@
         // Están en la carpeta "fotos/" numeradas 1.jpg, 2.jpg, 3.jpg...
         // Para añadir más: copia la foto a su carpeta con el siguiente número
         // y sube la cantidad de aquí abajo.
+        // Se cargan desde "fotos-cards/", que son las mismas fotos ya preparadas
+        // a formato de card (7/10, foto entera sobre fondo desenfocado). Los
+        // originales sin tocar siguen en "fotos/". Para añadir más: copia la foto
+        // a "fotos/<carpeta>/" con el siguiente número, genera su card y sube la
+        // cantidad de aquí abajo.
         function rutas(carpeta, cantidad) {
-            return Array.from({ length: cantidad }, (_, i) => `fotos/${carpeta}/${i + 1}.jpg`);
+            return Array.from({ length: cantidad }, (_, i) => `fotos-cards/${carpeta}/${i + 1}.jpg`);
         }
 
         const GALERIAS = {
@@ -1390,7 +1414,8 @@
         function rutasVideos(cantidad) {
             return Array.from({ length: cantidad }, (_, i) => ({
                 src: `videos/${i + 1}.mp4`,
-                poster: `videos/posters/${i + 1}.jpg`
+                card: `videos/cards/${i + 1}.jpg`,     // miniatura en formato card
+                poster: `videos/posters/${i + 1}.jpg`  // fotograma sin tocar, para el reproductor
             }));
         }
 
@@ -1751,32 +1776,18 @@ Por estos tres años, y por todas las vidas que nos faltan.`;
             navTo('screen-gallery');
         }
 
-        // Las dos capas de una card: el fondo desenfocado que rellena el marco
-        // y la foto entera encima (ver el CSS de .carousel-cell img).
-        function capasFoto(src, alt) {
-            const frag = document.createDocumentFragment();
-
-            const fondo = document.createElement('img');
-            fondo.className = 'card-bg';
-            fondo.src = src;
-            fondo.alt = '';
-            fondo.setAttribute('aria-hidden', 'true');
-            fondo.draggable = false;
-
+        function crearImagenFoto(src, alt) {
             const img = document.createElement('img');
             img.src = src;
             img.alt = alt || '';
             img.draggable = false;
-
-            frag.appendChild(fondo);
-            frag.appendChild(img);
-            return frag;
+            return img;
         }
 
         function crearCelda(src, alt) {
             const cell = document.createElement('div');
             cell.className = 'carousel-cell';
-            cell.appendChild(capasFoto(src, alt));
+            cell.appendChild(crearImagenFoto(src, alt));
             return cell;
         }
 
@@ -1861,7 +1872,7 @@ Por estos tres años, y por todas las vidas que nos faltan.`;
                     fotoDeRanura[i] = idxFoto;
                     cell.classList.remove('empty');
                     cell.innerHTML = '';
-                    cell.appendChild(capasFoto(fotosActuales[idxFoto], ''));
+                    cell.appendChild(crearImagenFoto(fotosActuales[idxFoto], ''));
                 }
             });
 
@@ -1928,6 +1939,7 @@ Por estos tres años, y por todas las vidas que nos faltan.`;
         const videoGrid = document.getElementById('video-grid');
         const videoLightbox = document.getElementById('video-lightbox');
         const videoPlayer = document.getElementById('video-lightbox-player');
+        const videoLoading = document.getElementById('video-loading');
 
         function construirGridVideos() {
             videoGrid.innerHTML = '';
@@ -1939,8 +1951,7 @@ Por estos tres años, y por todas las vidas que nos faltan.`;
             card.type = 'button';
             card.className = 'carousel-cell video-card';
             card.innerHTML = `
-                <img class="card-bg" src="${video.poster}" alt="" aria-hidden="true" draggable="false">
-                <img src="${video.poster}" alt="Vídeo ${index + 1}" draggable="false">
+                <img src="${video.card}" alt="Vídeo ${index + 1}" draggable="false">
                 <span class="play-badge">
                     <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                 </span>`;
@@ -1948,34 +1959,43 @@ Por estos tres años, y por todas las vidas que nos faltan.`;
             return card;
         }
 
-        let videoStartTimer = null;
-        let videoStartHandler = null;
-
-        // Se espera a "canplaythrough" (buffer suficiente para reproducir sin
-        // cortes) antes de arrancar, en vez de dar a play() nada más cambiar
-        // el src — con clips tan cortos, reproducir sin buffer es lo que
-        // hacía que se vieran a tirones. El timeout es red de seguridad por
-        // si el evento no llega (conexión lenta).
+        // El play() TIENE que hacerse aquí mismo, dentro del clic. Los
+        // navegadores solo dejan que un vídeo suene si la reproducción arranca
+        // dentro del gesto del usuario; si se espera a un evento o a un
+        // setTimeout ese permiso caduca y el vídeo sale mudo (en iPhone ni
+        // siquiera arranca). El buffering lo lleva el propio navegador con
+        // preload="auto", y mientras tanto se enseña el indicador de carga.
         function abrirVideo(video) {
             videoPlayer.poster = video.poster;
             videoLightbox.classList.add('active');
             videoPlayer.src = video.src;
+            videoPlayer.muted = false;
+            videoPlayer.volume = 1;
             videoPlayer.load();
+            mostrarCargaVideo(true);
 
-            const startPlayback = () => {
-                if (videoStartTimer) { clearTimeout(videoStartTimer); videoStartTimer = null; }
-                videoStartHandler = null;
-                videoPlayer.play().catch(() => {});
-            };
-            videoStartHandler = startPlayback;
-            videoPlayer.addEventListener('canplaythrough', startPlayback, { once: true });
-            videoStartTimer = setTimeout(startPlayback, 2500);
+            const intento = videoPlayer.play();
+            if (intento) {
+                intento.catch(() => {
+                    // Si el navegador lo bloquea igualmente, se deja el póster
+                    // y los controles para que pueda darle a play a mano.
+                    mostrarCargaVideo(false);
+                });
+            }
         }
+
+        function mostrarCargaVideo(visible) {
+            videoLoading.classList.toggle('show', visible);
+        }
+
+        videoPlayer.addEventListener('waiting', () => mostrarCargaVideo(true));
+        videoPlayer.addEventListener('playing', () => mostrarCargaVideo(false));
+        videoPlayer.addEventListener('canplay', () => mostrarCargaVideo(false));
+        videoPlayer.addEventListener('error', () => mostrarCargaVideo(false));
 
         function cerrarVideo() {
             videoLightbox.classList.remove('active');
-            if (videoStartTimer) { clearTimeout(videoStartTimer); videoStartTimer = null; }
-            if (videoStartHandler) { videoPlayer.removeEventListener('canplaythrough', videoStartHandler); videoStartHandler = null; }
+            mostrarCargaVideo(false);
             videoPlayer.pause();
             videoPlayer.removeAttribute('src');
             videoPlayer.load();
