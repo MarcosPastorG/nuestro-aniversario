@@ -688,13 +688,29 @@
             background-color: #0a0306;
         }
 
+        /* Las fotos vienen en formatos muy distintos (9:16 de móvil, 4:3 vertical,
+           4:3 horizontal...) y la card siempre mide 7/10. Si se recorta (cover) se
+           pierde parte de la foto; si se encaja entera (contain) cada card enseña
+           un hueco negro de distinto tamaño y no hay dos iguales. Solución: la foto
+           va entera encima de una copia de sí misma ampliada y desenfocada que
+           rellena el marco. Así no se recorta nada y todas se ven igual de llenas. */
         .carousel-cell img {
+            position: absolute;
+            inset: 0;
             width: 100%;
             height: 100%;
             object-fit: contain;
             pointer-events: none;
             opacity: 0.9;
             transition: opacity 0.3s;
+        }
+
+        .carousel-cell img.card-bg {
+            object-fit: cover;
+            transform: scale(1.2);
+            filter: blur(20px) brightness(0.5) saturate(1.15);
+            opacity: 1;
+            transition: none;
         }
 
         .carousel-cell:hover img { opacity: 1; }
@@ -824,12 +840,34 @@
 
         /* ---------- PANTALLA 4B: VIDEOS ---------- */
 
+        /* Título + subtítulo en bloque para que el subtítulo caiga solo debajo
+           del título sea cual sea su tamaño, en vez de ir posicionado a ojo. */
+        .videos-header {
+            position: absolute;
+            top: 4%;
+            left: 0;
+            width: 100%;
+            text-align: center;
+        }
+
+        .videos-header .gallery-title { position: static; }
+
+        .videos-subtitle {
+            font-family: 'Cinzel', serif;
+            font-style: italic;
+            font-size: 1.1rem;
+            letter-spacing: 3px;
+            color: rgba(255, 255, 255, 0.8);
+            text-shadow: 0 0 14px rgba(255, 117, 140, 0.55);
+            margin-top: 12px;
+        }
+
         .video-grid-wrapper {
             width: 92%;
             max-width: 1100px;
-            max-height: 62vh;
+            max-height: 58vh;
             overflow-y: auto;
-            margin-top: 30px;
+            margin-top: 70px;
             padding: 6px;
         }
 
@@ -859,13 +897,9 @@
         .video-card:active { transform: scale(0.96); }
         .video-card:focus-visible { outline: none; box-shadow: 0 0 40px var(--gold); }
 
-        .video-card img {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            pointer-events: none;
-            opacity: 0.85;
-        }
+        /* Hereda de .carousel-cell img (foto entera sobre fondo desenfocado);
+           aquí sólo se baja un poco la opacidad para que resalte el play. */
+        .video-card img { opacity: 0.85; }
 
         .video-card .play-badge {
             position: absolute;
@@ -947,7 +981,8 @@
             .universe-subtitle { font-size: 0.85rem; margin-top: 6px; }
             .hub { width: min(78vmin, 470px); margin-top: 70px; }
             .carousel, .carousel-cell { width: min(45vmin, 400px); }
-            .video-grid-wrapper { max-height: 56vh; }
+            .videos-subtitle { font-size: 0.95rem; margin-top: 8px; }
+            .video-grid-wrapper { max-height: 52vh; margin-top: 60px; }
         }
 
         @media (max-width: 768px) {
@@ -974,6 +1009,8 @@
             .hub-node-label { font-size: 0.62rem; letter-spacing: 1px; }
 
             .gallery-title { font-size: 2rem; top: 5%; letter-spacing: 4px; }
+            .videos-header { top: 5%; }
+            .videos-subtitle { font-size: 0.85rem; letter-spacing: 2px; margin-top: 8px; padding: 0 16px; }
             .carousel, .carousel-cell { width: min(78vmin, 380px); aspect-ratio: 11 / 16; }
             .video-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 14px; }
             .video-card { aspect-ratio: 11 / 16; }
@@ -1243,7 +1280,10 @@
 
     <!-- ============ PANTALLA 4B: VIDEOS ============ -->
     <div id="screen-videos" class="screen">
-        <h1 class="gallery-title">VIDEOS</h1>
+        <div class="videos-header">
+            <h1 class="gallery-title">VIDEOS</h1>
+            <p class="videos-subtitle">Algo de todo lo que hemos vivido</p>
+        </div>
         <div class="video-grid-wrapper">
             <div class="video-grid" id="video-grid"></div>
         </div>
@@ -1675,14 +1715,32 @@ Feliz Aniversario. Y por todas las vidas que nos faltan.`;
             navTo('screen-gallery');
         }
 
+        // Las dos capas de una card: el fondo desenfocado que rellena el marco
+        // y la foto entera encima (ver el CSS de .carousel-cell img).
+        function capasFoto(src, alt) {
+            const frag = document.createDocumentFragment();
+
+            const fondo = document.createElement('img');
+            fondo.className = 'card-bg';
+            fondo.src = src;
+            fondo.alt = '';
+            fondo.setAttribute('aria-hidden', 'true');
+            fondo.draggable = false;
+
+            const img = document.createElement('img');
+            img.src = src;
+            img.alt = alt || '';
+            img.draggable = false;
+
+            frag.appendChild(fondo);
+            frag.appendChild(img);
+            return frag;
+        }
+
         function crearCelda(src, alt) {
             const cell = document.createElement('div');
             cell.className = 'carousel-cell';
-            const img = document.createElement('img');
-            img.src = src;
-            img.alt = alt;
-            img.draggable = false;
-            cell.appendChild(img);
+            cell.appendChild(capasFoto(src, alt));
             return cell;
         }
 
@@ -1767,10 +1825,7 @@ Feliz Aniversario. Y por todas las vidas que nos faltan.`;
                     fotoDeRanura[i] = idxFoto;
                     cell.classList.remove('empty');
                     cell.innerHTML = '';
-                    const img = document.createElement('img');
-                    img.src = fotosActuales[idxFoto];
-                    img.draggable = false;
-                    cell.appendChild(img);
+                    cell.appendChild(capasFoto(fotosActuales[idxFoto], ''));
                 }
             });
 
@@ -1848,6 +1903,7 @@ Feliz Aniversario. Y por todas las vidas que nos faltan.`;
             card.type = 'button';
             card.className = 'carousel-cell video-card';
             card.innerHTML = `
+                <img class="card-bg" src="${video.poster}" alt="" aria-hidden="true" draggable="false">
                 <img src="${video.poster}" alt="Vídeo ${index + 1}" draggable="false">
                 <span class="play-badge">
                     <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
