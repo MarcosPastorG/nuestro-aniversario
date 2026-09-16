@@ -1765,9 +1765,16 @@ Por estos tres años, y por todas las vidas que nos faltan.`;
         let currentAngle = 0;
         let giroActivo = false;
 
+        // Se mide con offsetWidth y NO con getBoundingClientRect: el segundo
+        // devuelve el tamaño ya deformado por los transform de los padres, y al
+        // entrar por segunda vez el carrusel todavía conserva el
+        // translateZ/rotateY de la visita anterior. Medía la card encogida por
+        // la perspectiva, salía un radio demasiado pequeño y las cards se
+        // amontonaban; además cada visita heredaba el error de la anterior.
+        // offsetWidth da siempre el ancho real de maquetación.
         function cellWidth() {
             const ref = carousel.querySelector('.carousel-cell');
-            return ref ? ref.getBoundingClientRect().width : (window.innerWidth <= 768 ? 220 : 280);
+            return ref && ref.offsetWidth ? ref.offsetWidth : (window.innerWidth <= 768 ? 220 : 280);
         }
 
         function abrirGaleria(cat) {
