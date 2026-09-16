@@ -691,7 +691,7 @@
         .carousel-cell img {
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            object-fit: contain;
             pointer-events: none;
             opacity: 0.9;
             transition: opacity 0.3s;
@@ -862,7 +862,7 @@
         .video-card img {
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            object-fit: contain;
             pointer-events: none;
             opacity: 0.85;
         }
@@ -1266,7 +1266,7 @@
         <div class="video-lightbox-backdrop" onclick="cerrarVideo()"></div>
         <div class="video-lightbox-content">
             <button type="button" class="video-lightbox-close" onclick="cerrarVideo()" aria-label="Cerrar">&times;</button>
-            <video id="video-lightbox-player" controls playsinline></video>
+            <video id="video-lightbox-player" controls playsinline preload="auto"></video>
         </div>
     </div>
 
@@ -1856,15 +1856,34 @@ Feliz Aniversario. Y por todas las vidas que nos faltan.`;
             return card;
         }
 
+        let videoStartTimer = null;
+        let videoStartHandler = null;
+
+        // Se espera a "canplaythrough" (buffer suficiente para reproducir sin
+        // cortes) antes de arrancar, en vez de dar a play() nada más cambiar
+        // el src — con clips tan cortos, reproducir sin buffer es lo que
+        // hacía que se vieran a tirones. El timeout es red de seguridad por
+        // si el evento no llega (conexión lenta).
         function abrirVideo(video) {
-            videoPlayer.src = video.src;
             videoPlayer.poster = video.poster;
             videoLightbox.classList.add('active');
-            videoPlayer.play().catch(() => {});
+            videoPlayer.src = video.src;
+            videoPlayer.load();
+
+            const startPlayback = () => {
+                if (videoStartTimer) { clearTimeout(videoStartTimer); videoStartTimer = null; }
+                videoStartHandler = null;
+                videoPlayer.play().catch(() => {});
+            };
+            videoStartHandler = startPlayback;
+            videoPlayer.addEventListener('canplaythrough', startPlayback, { once: true });
+            videoStartTimer = setTimeout(startPlayback, 2500);
         }
 
         function cerrarVideo() {
             videoLightbox.classList.remove('active');
+            if (videoStartTimer) { clearTimeout(videoStartTimer); videoStartTimer = null; }
+            if (videoStartHandler) { videoPlayer.removeEventListener('canplaythrough', videoStartHandler); videoStartHandler = null; }
             videoPlayer.pause();
             videoPlayer.removeAttribute('src');
             videoPlayer.load();
