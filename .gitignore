@@ -1,0 +1,9 @@
+# Fuente/material de trabajo, no forma parte del sitio desplegado
+Fotos y videos Nerea/
+Videos de ejemplo/
+_version-anterior/
+diseno/
+
+# OS / editor
+.DS_Store
+Thumbs.db
