@@ -429,9 +429,12 @@
 
         .universe-title {
             font-family: 'Cinzel', serif;
-            font-size: 3rem;
+            /* Escala con el ancho para que títulos largos ("Nuestro Aniversario",
+               "Nuestros Recuerdos") no se salgan por el lado en móviles estrechos. */
+            font-size: clamp(1.45rem, 6vw, 3rem);
             font-weight: 700;
             text-align: center;
+            max-width: 94%;
             background: linear-gradient(to right, var(--gold), #ffffff, var(--rose-gold));
             -webkit-background-clip: text;
             background-clip: text;
@@ -1021,7 +1024,7 @@
         /* ---------- RESPONSIVE ---------- */
 
         @media (max-height: 780px) {
-            .universe-title { font-size: 2.2rem; }
+            .universe-title { font-size: clamp(1.3rem, 5vw, 2.2rem); }
             .universe-subtitle { font-size: 0.85rem; margin-top: 6px; }
             .hub { width: min(78vmin, 470px); margin-top: 70px; }
             .carousel, .carousel-cell { width: min(45vmin, 400px); }
@@ -1050,7 +1053,7 @@
             .nav-buttons { flex-direction: column; width: 85%; gap: 15px; }
             .premium-btn { width: 100%; padding: 15px 20px; font-size: 0.9rem; }
 
-            .universe-title { font-size: 2rem; letter-spacing: 2px; }
+            .universe-title { letter-spacing: 2px; }
             .universe-subtitle { font-size: 0.8rem; }
             .hub { width: min(90vmin, 450px); }
             .hub-node-label { font-size: 0.62rem; letter-spacing: 1px; }
@@ -1191,7 +1194,7 @@
 
     <!-- ============ PANTALLA 3: NUESTRO UNIVERSO ============ -->
     <div id="screen-universe" class="screen">
-        <h1 class="universe-title">Nuestro Universo</h1>
+        <h1 class="universe-title">Nuestro Aniversario</h1>
         <p class="universe-subtitle">Cada constelación guarda un recuerdo</p>
 
         <div class="hub" id="hub">
