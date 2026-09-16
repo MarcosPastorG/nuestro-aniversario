@@ -791,7 +791,33 @@
             text-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
             font-weight: 400;
             min-height: 250px;
+            /* La carta ya no cabe de una vez en pantalla: se limita y hace
+               scroll sola mientras se escribe (ver desplazarCarta). */
+            max-height: 56vh;
+            overflow-y: auto;
+            padding-right: 12px;
         }
+
+        .letter-text::-webkit-scrollbar { width: 6px; }
+        .letter-text::-webkit-scrollbar-track { background: transparent; }
+        .letter-text::-webkit-scrollbar-thumb {
+            background: rgba(255, 215, 0, 0.35);
+            border-radius: 3px;
+        }
+
+        .letter-skip {
+            margin-top: 18px;
+            text-align: center;
+            font-size: 0.7rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.3);
+            opacity: 0;
+            transition: opacity 1.2s ease;
+            pointer-events: none;
+        }
+
+        .letter-skip.show { opacity: 1; }
 
         .signature {
             font-family: 'Alex Brush', cursive;
@@ -983,6 +1009,9 @@
             .carousel, .carousel-cell { width: min(45vmin, 400px); }
             .videos-subtitle { font-size: 0.95rem; margin-top: 8px; }
             .video-grid-wrapper { max-height: 52vh; margin-top: 60px; }
+            .letter-container { padding: 40px; }
+            .letter-text { font-size: 1.2rem; line-height: 1.9; max-height: 48vh; min-height: 180px; }
+            .signature { font-size: 3.2rem; margin-top: 24px; }
         }
 
         @media (max-width: 768px) {
@@ -1292,10 +1321,11 @@
 
     <!-- ============ PANTALLA 5: CARTA ============ -->
     <div id="screen-letter" class="screen">
-        <div class="letter-container">
-            <div class="letter-text">
+        <div class="letter-container" onclick="completarCarta()">
+            <div class="letter-text" id="letter-text">
                 <span id="typed-text"></span><span class="cursor" id="cursor"></span>
             </div>
+            <div class="letter-skip" id="letter-skip">Toca para verla entera</div>
             <div class="signature" id="signature">Te quiero</div>
         </div>
         <button class="premium-btn btn-back" onclick="navTo('screen-dashboard')">Volver</button>
@@ -1367,13 +1397,19 @@
         const VIDEOS = rutasVideos(36);
 
         // Texto de la carta
-        const CARTA = `Amor de mi Vida,
+        const CARTA = `Nerea,
 
-Gracias por ser el refugio de mi vida, por cada instante, cada risa y hasta por los silencios que hemos compartido.
+Hoy hace tres años. Tres años desde aquel 16 de septiembre en el que, sin saberlo todavía, empezó la mejor parte de mi vida.
 
-Eres el núcleo de mi universo. Quiero que sepas, hoy y siempre, que mi lugar favorito en el mundo es a tu lado.
+Gracias por lo grande: por cada viaje, cada celebración, cada foto de las que están guardadas aquí dentro. Pero sobre todo gracias por lo pequeño, que es lo que de verdad me tiene enamorado. Por las risas tontas a horas absurdas. Por las conversaciones que se alargan cuando ya deberíamos estar dormidos. Por los silencios contigo, que son los únicos en los que no necesito llenar nada.
 
-Feliz Aniversario. Y por todas las vidas que nos faltan.`;
+Gracias por quedarte los días en los que no fui fácil. Por entenderme sin que tuviera que explicarme y por recordarme quién soy cuando se me olvidaba. Eso no se pide. Eso se elige. Y tú lo has elegido cada día.
+
+Y si lo que llevamos ha sido así, no me quiero ni imaginar lo que nos queda. Quiero más días normales contigo. Más planes que salen mal y acaban siendo los mejores. Más veranos, más cumpleaños, más "¿te acuerdas de cuando...?".
+
+Feliz aniversario, mi amor.
+
+Por estos tres años, y por todas las vidas que nos faltan.`;
 
         /* ======================= FONDO DE PARTÍCULAS ======================= */
 
@@ -1955,33 +1991,83 @@ Feliz Aniversario. Y por todas las vidas que nos faltan.`;
         /* ======================= CARTA ======================= */
 
         const typeContainer = document.getElementById('typed-text');
+        const letterText = document.getElementById('letter-text');
+        const letterSkip = document.getElementById('letter-skip');
         const signature = document.getElementById('signature');
         let typeIndex = 0;
         let isTyping = false;
-        let typeInterval;
+        let typeTimer = null;
+        let skipHintTimer = null;
+
+        // Velocidad base por letra. Además se respira un poco en los signos de
+        // puntuación y en los saltos de párrafo: es lo que le da el ritmo de
+        // alguien escribiendo de verdad en vez de un tecleo plano.
+        const VELOCIDAD_CARTA = 38;
+        const PAUSAS_CARTA = { '.': 420, '?': 420, '!': 420, ',': 160, ':': 220, '\n': 300 };
+
+        function pintarCaracter(char) {
+            typeContainer.appendChild(
+                char === '\n' ? document.createElement('br') : document.createTextNode(char)
+            );
+        }
+
+        function desplazarCarta() {
+            letterText.scrollTop = letterText.scrollHeight;
+        }
+
+        function terminarCarta() {
+            clearTimeout(typeTimer);
+            typeTimer = null;
+            clearTimeout(skipHintTimer);
+            skipHintTimer = null;
+            letterSkip.classList.remove('show');
+            typeIndex = CARTA.length;
+            desplazarCarta();
+            setTimeout(() => signature.classList.add('show'), 500);
+        }
+
+        // Clic en la carta: se ve entera de golpe (para cuando ya la ha leído
+        // y solo quiere volver a ella).
+        function completarCarta() {
+            if (!isTyping || typeIndex >= CARTA.length) return;
+            while (typeIndex < CARTA.length) {
+                pintarCaracter(CARTA.charAt(typeIndex));
+                typeIndex++;
+            }
+            terminarCarta();
+        }
 
         function resetTypewriter() {
+            clearTimeout(typeTimer);
+            typeTimer = null;
+            clearTimeout(skipHintTimer);
+            skipHintTimer = null;
             typeContainer.innerHTML = "";
+            letterText.scrollTop = 0;
+            letterSkip.classList.remove('show');
             signature.classList.remove('show');
             typeIndex = 0;
             isTyping = false;
-            clearInterval(typeInterval);
         }
 
         function startTypewriter() {
             if (isTyping) return;
             isTyping = true;
+            skipHintTimer = setTimeout(() => letterSkip.classList.add('show'), 12000);
 
-            typeInterval = setInterval(() => {
-                if (typeIndex < CARTA.length) {
-                    const char = CARTA.charAt(typeIndex);
-                    typeContainer.innerHTML += char === '\n' ? '<br>' : char;
-                    typeIndex++;
-                } else {
-                    clearInterval(typeInterval);
-                    setTimeout(() => signature.classList.add('show'), 500);
+            const siguiente = () => {
+                if (typeIndex >= CARTA.length) {
+                    terminarCarta();
+                    return;
                 }
-            }, 60);
+                const char = CARTA.charAt(typeIndex);
+                pintarCaracter(char);
+                typeIndex++;
+                desplazarCarta();
+                typeTimer = setTimeout(siguiente, VELOCIDAD_CARTA + (PAUSAS_CARTA[char] || 0));
+            };
+
+            siguiente();
         }
     </script>
 
